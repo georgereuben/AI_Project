@@ -3,6 +3,7 @@ import random
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
+import time
 
 def debug_print(*args):
     print("\n\n",*args, flush=True)
@@ -82,65 +83,44 @@ def objective_function(row, model):
 
     return float(proba)
 
-def hill_climbing_search(data, model, most_important_attr, iterations=50000):
+def random_search(data, model, most_important_attr, iterations=500):
     # Sort the test data by the most important attribute
     sorted_data = data.sort_values(by=[most_important_attr])
     
     # Get the column order of the data
     column_order = sorted_data.columns
     
-    # Initialize the current state to be the first row of the sorted data
-    current_state = sorted_data.iloc[130]
-    debug_print(f"Current state: {current_state}")
-    debug_print(f"Current state data type: {type(current_state)}")
+    # Initialize the best state and score
+    best_state = sorted_data.iloc[130]
+    best_score = objective_function(best_state, model)
     
     for i in range(iterations):
-        # Get the index of image.pngthe current state
-        current_index = sorted_data.index.get_loc(current_state.name)
-        #debug_print(f"Current index: {current_index}")
+        # Choose a random state
+        random_index = random.choice(sorted_data.index)
+        random_state = sorted_data.loc[random_index]
+        #debug_print(f"Random state: {random_state}")
         
-        # Get the indices of the neighbouring states
-        if current_index == 0:
-            neighbour_indices = [1]
-        elif current_index == len(sorted_data) - 1:
-            neighbour_indices = [-1]
-        else:
-            # Generate a list of neighbour indices with a Gaussian probability distribution centered at 0
-            neighbour_indices = np.random.normal(loc=0, scale=10, size=20).round().astype(int)
-            neighbour_indices = np.clip(neighbour_indices, -current_index, len(sorted_data) - current_index - 1)
+        # Evaluate the objective function on the random state
+        random_score = objective_function(random_state, model)
         
+        # If the random state has a better score than the current best, update the best state and score
+        if random_score > best_score:
+            best_state = random_state
+            best_score = random_score
         
-        # Evaluate the objective function on the current state
-        current_score = objective_function(current_state, model)
-        
-        # Choose a random neighbour from the neighbour indices
-        neighbour_index = random.choice(neighbour_indices)
-        #debug_print(f"Neighbour index: {neighbour_index}")
-        
-        # Get the neighbour state
-        neighbour_state = sorted_data.iloc[current_index + neighbour_index].loc[column_order]
-        #debug_print(f"Neighbour index: {current_index + neighbour_index}")
-        
-        # Evaluate the objective function on the neighbour state
-        neighbour_score = objective_function(neighbour_state, model)
-        
-        # If the neighbour state has a better score, update the current state
-        if neighbour_score > current_score:
-            current_state = neighbour_state
-            current_score = neighbour_score
-        
-        # Print the current state and score for debugging purposes
-        print(f"Iteration {i+1}: {current_state}\nScore: {current_score}")
         global foo
-    foo = current_score
+        foo = best_score
+        # Print the current best state and score for debugging purposes
+        time.sleep(0.1)
+        print(f"Iteration {i+1}: {best_state}\nScore: {best_score}")
+    
     # Return the best row found
-    return current_state
-
+    return best_state
 
 # Run hill climbing search on the most important attribute
 most_important_attr = sorted_attributes[0][0]
-best_row = hill_climbing_search(sorted_test_data, linear_model, most_important_attr)
+best_row = random_search(sorted_test_data, linear_model, most_important_attr)
 
 # Print the best state
 print("\n\n\n\Initial state: ", sorted_test_data.iloc[130])
-print("\n\n\n\Best state: ", best_row, "Best Score", foo)
+print("\n\n\n\Best state: ", best_row, "\nbest score: ", foo)

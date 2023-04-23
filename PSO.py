@@ -82,64 +82,88 @@ def objective_function(row, model):
 
     return float(proba)
 
-def hill_climbing_search(data, model, most_important_attr, iterations=50000):
+import numpy as np
+
+def pso_search(data, model, most_important_attr, iterations=5000, num_particles=20, omega=0.5, phi_p=0.5, phi_g=0.5):
     # Sort the test data by the most important attribute
     sorted_data = data.sort_values(by=[most_important_attr])
     
     # Get the column order of the data
     column_order = sorted_data.columns
     
-    # Initialize the current state to be the first row of the sorted data
-    current_state = sorted_data.iloc[130]
-    debug_print(f"Current state: {current_state}")
-    debug_print(f"Current state data type: {type(current_state)}")
+    # Get the number of dimensions
+    num_dimensions = len(column_order)
     
+    # Initialize the particles
+    particles = []
+    particle_best_solutions = []
+    global_best_solution = None
+    global_best_score = -np.inf
+    
+    for i in range(num_particles):
+        # Initialize the particle's position to a random row in the data
+        particle_position = sorted_data.sample(n=1).iloc[0].loc[column_order]
+        
+        # Evaluate the objective function on the particle's position
+        particle_score = objective_function(particle_position, model)
+        
+        # Set the particle's best position to be its initial position
+        particle_best_position = particle_position
+        particle_best_score = particle_score
+        
+        # Update the global best solution if necessary
+        if particle_score > global_best_score:
+            global_best_solution = particle_position
+            global_best_score = particle_score
+        
+        # Add the particle to the list of particles
+        particles.append((particle_position, particle_best_position))
+        particle_best_solutions.append(particle_best_position)
+    
+    # Iterate for the specified number of iterations
     for i in range(iterations):
-        # Get the index of image.pngthe current state
-        current_index = sorted_data.index.get_loc(current_state.name)
-        #debug_print(f"Current index: {current_index}")
+        for j in range(num_particles):
+            # Get the current particle's position and best position
+            particle_position, particle_best_position = particles[j]
+            
+            # Generate a new velocity for the particle
+            velocity = omega * np.array(particles[j][0] - particles[j][1])
+            velocity += phi_p * np.random.rand(num_dimensions) * (particle_best_position - particle_position)
+            velocity += phi_g * np.random.rand(num_dimensions) * (global_best_solution - particle_position)
+            
+            # Update the particle's position
+            particle_position += velocity
+            
+            # Clip the particle's position to the valid range
+            particle_position = np.clip(particle_position, sorted_data.iloc[0].loc[column_order], sorted_data.iloc[-1].loc[column_order])
+            
+            # Evaluate the objective function on the new position
+            particle_score = objective_function(particle_position, model)
+            
+            # Update the particle's best position if necessary
+            if particle_score > objective_function(particle_best_position, model):
+                particle_best_position = particle_position
+            
+            # Update the global best solution if necessary
+            if particle_score > global_best_score:
+                global_best_solution = particle_position
+                global_best_score = particle_score
+            
+            # Update the particle's position and best position in the list of particles
+            particles[j] = (particle_position, particle_best_position)
+            particle_best_solutions[j] = particle_best_position
         
-        # Get the indices of the neighbouring states
-        if current_index == 0:
-            neighbour_indices = [1]
-        elif current_index == len(sorted_data) - 1:
-            neighbour_indices = [-1]
-        else:
-            # Generate a list of neighbour indices with a Gaussian probability distribution centered at 0
-            neighbour_indices = np.random.normal(loc=0, scale=10, size=20).round().astype(int)
-            neighbour_indices = np.clip(neighbour_indices, -current_index, len(sorted_data) - current_index - 1)
-        
-        
-        # Evaluate the objective function on the current state
-        current_score = objective_function(current_state, model)
-        
-        # Choose a random neighbour from the neighbour indices
-        neighbour_index = random.choice(neighbour_indices)
-        #debug_print(f"Neighbour index: {neighbour_index}")
-        
-        # Get the neighbour state
-        neighbour_state = sorted_data.iloc[current_index + neighbour_index].loc[column_order]
-        #debug_print(f"Neighbour index: {current_index + neighbour_index}")
-        
-        # Evaluate the objective function on the neighbour state
-        neighbour_score = objective_function(neighbour_state, model)
-        
-        # If the neighbour state has a better score, update the current state
-        if neighbour_score > current_score:
-            current_state = neighbour_state
-            current_score = neighbour_score
-        
-        # Print the current state and score for debugging purposes
-        print(f"Iteration {i+1}: {current_state}\nScore: {current_score}")
-        global foo
-    foo = current_score
+        # Print the global best solution and score for debugging purposes
+        print(f"Iteration {i+1}: {global_best_solution}\nScore: {global_best_score}")
+    
+    global foo
+    foo = global_best_score
     # Return the best row found
-    return current_state
-
+    return global_best_solution
 
 # Run hill climbing search on the most important attribute
 most_important_attr = sorted_attributes[0][0]
-best_row = hill_climbing_search(sorted_test_data, linear_model, most_important_attr)
+best_row = pso_search(sorted_test_data, linear_model, most_important_attr)
 
 # Print the best state
 print("\n\n\n\Initial state: ", sorted_test_data.iloc[130])
