@@ -3,6 +3,9 @@ import random
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
+def debug_print(*args):
+    print("\n\n",*args, flush=True)
+
 # Load the dataset
 dataset = pd.read_csv('Cleaned_Advertisements.csv')
 #dataset = dataset.drop(['Unnamed: 0'], axis=1)
@@ -63,47 +66,74 @@ y_train = train_data['ClickedOnAd']
 X_train = train_data.drop(['ClickedOnAd'], axis=1)
 linear_model.fit(X_train, y_train)
 
-# Define the objective function
-def objective_function(row, data, model):
-    # set the input features to all columns except the last one (ClickedOnAd)
-    X = data.iloc[:,:-1]
+def predict_proba_on_row(row, model):
 
-    # set the output variable to the last column (ClickedOnAd)
-    y = data.iloc[:,-1]
+    # Predict the probability of the row being clicked on
+    proba = model.predict_proba(row)    
+    proba = proba[0][1]
+    debug_print(f"proba yuuu : {type(proba)}")
 
-    # set the input features to the values of the current row
-    for i, col in enumerate(X.columns):
-        X.loc[row.name, col] = row[i]
+    # Return the predicted probability as a numpy float
+    return proba
 
-    # return the probability of the output variable being true
-    return model.predict_proba(X)[:,1][row.name]
+def objective_function(row, model, column_order):
 
-def hill_climbing_search(data, model, most_important_attr, max_iterations=100):
-    # Create a list of rows to work on
-    rows = list(range(len(data)))
+    #convert row (pandas.core.series.Series) to dataframe (pandas.core.frame.DataFrame)
+    row = row.to_frame().transpose()
+
+    # Predict the probability of the row being clicked on using the predict_proba_on_row function
+    proba = predict_proba_on_row(row, model)
+
+    debug_print(f"nplog : {-np.log(proba)}")
+    return proba
+
+def hill_climbing_search(data, model, most_important_attr, iterations=100):
+    # Sort the test data by the most important attribute
+    sorted_data = data.sort_values(by=[most_important_attr])
     
-    # Initialize the current state
-    current_state = data.iloc[rows[0]]
+    # Get the column order of the data
+    column_order = sorted_data.columns
     
-    # Evaluate the current state
-    current_score = objective_function(current_state, data, linear_model)
+    # Initialize the current state to be the first row of the sorted data
+    current_state = sorted_data.iloc[150]
+    debug_print(f"Current state: {current_state}")
+    debug_print(f"Current state data type: {type(current_state)}")
     
-    # Iterate for a set number of iterations
-    for i in range(max_iterations):
+    for i in range(iterations):
+        # Get the index of the current state
+        current_index = sorted_data.index.get_loc(current_state.name)
+        debug_print(f"Current index: {current_index}")
         
-        # Get a random neighbour
-        neighbour_index = random.choice([0, -1])
-        neighbour_state = data.iloc[rows[rows.index(data.index.get_loc(current_state.name)) + neighbour_index]]
+        # Get the indices of the neighbouring states
+        if current_index == 0:
+            neighbour_indices = [1]
+        elif current_index == len(sorted_data) - 1:
+            neighbour_indices = [-1]
+        else:
+            neighbour_indices = [-1, 1]
         
-        # Evaluate the neighbour
-        neighbour_score = objective_function(neighbour_state, data, model, most_important_attr)
+        # Evaluate the objective function on the current state
+        current_score = objective_function(current_state, model, column_order)
         
-        # Check if the neighbour is better than the current state
-        if neighbour_score > current_score:
-            current_state = neighbour_state
-            current_score = neighbour_score
+        # Search the neighbourhood for a better state
+        for neighbour_index in neighbour_indices:
+            # Get the neighbour state
+            neighbour_state = data.iloc[current_index + neighbour_index].loc[column_order]
+            debug_print(f"Neighbour state: {neighbour_state}")
+            
+            # Evaluate the objective function on the neighbour state
+            neighbour_score = objective_function(neighbour_state, model, column_order)
+            
+            # If the neighbour state has a better score, update the current state
+            if neighbour_score < current_score:
+                current_state = neighbour_state
+                current_score = neighbour_score
+        
+        # Print the current state and score for debugging purposes
+        print(f"Iteration {i+1}: {current_state}\nScore: {current_score}")
     
-    return current_state, current_score
+    # Return the best row found
+    return current_state
 
 def get_neighbours(state, data):
     current_index = state.index[0]
@@ -119,7 +149,7 @@ def get_neighbours(state, data):
 
 # Run hill climbing search on the most important attribute
 most_important_attr = sorted_attributes[0][0]
-best_row = hill_climbing_search(sorted_test_data, linear_model, objective_function, most_important_attr)
+best_row = hill_climbing_search(sorted_test_data, linear_model, most_important_attr)
 
 # Print the best state
-print("\n\n\n\n\n\n\Best state: ", best_row[0])
+print("\n\n\n\n\n\n\Best state: ", best_row)

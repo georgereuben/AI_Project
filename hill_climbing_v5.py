@@ -63,37 +63,41 @@ y_train = train_data['ClickedOnAd']
 X_train = train_data.drop(['ClickedOnAd'], axis=1)
 linear_model.fit(X_train, y_train)
 
-# Define the objective function
-def objective_function(row, data, model):
-    # set the input features to all columns except the last one (ClickedOnAd)
-    X = data.iloc[:,:-1]
+def predict_proba_on_row(row,model):
+    X = row.to_numpy().reshape(1, -1)
+    probas = model.predict_proba(X)
+    return probas[0, 1]
 
-    # set the output variable to the last column (ClickedOnAd)
-    y = data.iloc[:,-1]
+def objective_function(row, model, column_order):
+    # Create a DataFrame with the row data and reorder the columns
+    row_df = pd.DataFrame(row, index=[0], columns=column_order)
 
-    # set the input features to the values of the current row
-    for i, col in enumerate(X.columns):
-        X.loc[row.name, col] = row[i]
+    # Predict the probability of the row being clicked on using the predict_proba_on_row function
+    proba = predict_proba_on_row(row_df, model)
 
-    # return the probability of the output variable being true
-    return model.predict_proba(X)[:,1][row.name]
+    # Return the negative log-likelihood of the predicted probability
+    return -np.log(proba)
 
 def hill_climbing_search(data, model, most_important_attr, max_iterations=100):
+    
     # Create a list of rows to work on
     rows = list(range(len(data)))
+
+    # Define the column order for the row data
+    column_order = train_data.drop(['ClickedOnAd'], axis=1).columns
     
     # Initialize the current state
-    current_state = data.iloc[rows[0]]
+    current_state = test_data.iloc[0].loc[column_order].values.reshape(1, -1)
     
     # Evaluate the current state
-    current_score = objective_function(current_state, data, linear_model)
+    current_score = objective_function(current_state, linear_model, column_order)
     
     # Iterate for a set number of iterations
     for i in range(max_iterations):
         
         # Get a random neighbour
-        neighbour_index = random.choice([0, -1])
-        neighbour_state = data.iloc[rows[rows.index(data.index.get_loc(current_state.name)) + neighbour_index]]
+        neighbour_index = random.choice([-3, -2, -1, 0, 1, 2, 3])
+        neighbour_state = data.iloc[rows[rows.index(data.index.get_loc(current_state.name)) + neighbour_index]].loc[column_order].values
         
         # Evaluate the neighbour
         neighbour_score = objective_function(neighbour_state, data, model, most_important_attr)
@@ -119,7 +123,7 @@ def get_neighbours(state, data):
 
 # Run hill climbing search on the most important attribute
 most_important_attr = sorted_attributes[0][0]
-best_row = hill_climbing_search(sorted_test_data, linear_model, objective_function, most_important_attr)
+best_row = hill_climbing_search(sorted_test_data, linear_model, most_important_attr)
 
 # Print the best state
 print("\n\n\n\n\n\n\Best state: ", best_row[0])
