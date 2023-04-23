@@ -82,7 +82,7 @@ def objective_function(row, model):
 
     return float(proba)
 
-def hill_climbing_search(data, model, most_important_attr, iterations=5000):
+def hill_climbing_search(data, model, most_important_attr, iterations=50000):
     # Sort the test data by the most important attribute
     sorted_data = data.sort_values(by=[most_important_attr])
     
@@ -95,7 +95,7 @@ def hill_climbing_search(data, model, most_important_attr, iterations=5000):
     debug_print(f"Current state data type: {type(current_state)}")
     
     for i in range(iterations):
-        # Get the index of the current state
+        # Get the index of image.pngthe current state
         current_index = sorted_data.index.get_loc(current_state.name)
         #debug_print(f"Current index: {current_index}")
         
@@ -105,7 +105,10 @@ def hill_climbing_search(data, model, most_important_attr, iterations=5000):
         elif current_index == len(sorted_data) - 1:
             neighbour_indices = [-1]
         else:
-            neighbour_indices = list(range(-10, 0)) + list(range(1, 11))
+            # Generate a list of neighbour indices with a Gaussian probability distribution centered at 0
+            neighbour_indices = np.random.normal(loc=0, scale=1, size=20).round().astype(int)
+            neighbour_indices = np.clip(neighbour_indices, -current_index, len(sorted_data) - current_index - 1)
+        
         
         # Evaluate the objective function on the current state
         current_score = objective_function(current_state, model)
@@ -116,18 +119,18 @@ def hill_climbing_search(data, model, most_important_attr, iterations=5000):
         
         # Get the neighbour state
         neighbour_state = sorted_data.iloc[current_index + neighbour_index].loc[column_order]
-        debug_print(f"Neighbour index: {current_index + neighbour_index}")
+        #debug_print(f"Neighbour index: {current_index + neighbour_index}")
         
         # Evaluate the objective function on the neighbour state
         neighbour_score = objective_function(neighbour_state, model)
         
         # If the neighbour state has a better score, update the current state
-        if neighbour_score < current_score:
+        if neighbour_score > current_score:
             current_state = neighbour_state
             current_score = neighbour_score
         
         # Print the current state and score for debugging purposes
-        #print(f"Iteration {i+1}: {current_state}\nScore: {current_score}")
+        print(f"Iteration {i+1}: {current_state}\nScore: {current_score}")
     
     # Return the best row found
     return current_state
