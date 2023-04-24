@@ -9,7 +9,6 @@ def debug_print(*args):
 
 # Load the dataset
 dataset = pd.read_csv('Cleaned_Advertisements.csv')
-#dataset = dataset.drop(['Unnamed: 0'], axis=1)
 
 # Split dataset into training and testing datasets
 train_data = dataset[:700]
@@ -82,7 +81,7 @@ def objective_function(row, model):
 
     return float(proba)
 
-def hill_climbing_search(data, model, most_important_attr, iterations=50000):
+def hill_climbing_search(data, model, most_important_attr, iterations=5000):
     # Sort the test data by the most important attribute
     sorted_data = data.sort_values(by=[most_important_attr])
     

@@ -117,7 +117,7 @@ def random_search(data, model, most_important_attr, iterations=500):
     # Return the best row found
     return best_state
 
-# Run hill climbing search on the most important attribute
+# Run random search on the most important attribute
 most_important_attr = sorted_attributes[0][0]
 best_row = random_search(sorted_test_data, linear_model, most_important_attr)
 

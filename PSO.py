@@ -84,12 +84,12 @@ def objective_function(row, model):
 
 import numpy as np
 
-def pso_search(data, model, most_important_attr, iterations=5000, num_particles=20, omega=0.5, phi_p=0.5, phi_g=0.5):
+def pso_search(data, model, most_important_attr, iterations=150, num_particles=20, omega=0.9, phi_p=0.5, phi_g=0.5):
     # Sort the test data by the most important attribute
     sorted_data = data.sort_values(by=[most_important_attr])
     
     # Get the column order of the data
-    column_order = sorted_data.columns
+    column_order = sorted_data.columnscolumns
     
     # Get the number of dimensions
     num_dimensions = len(column_order)
